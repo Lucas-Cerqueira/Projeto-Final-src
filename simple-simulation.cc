@@ -83,6 +83,9 @@ class SimulationMonitor
     double logInterval; // seconds
     const char* logFilename;
 
+    Ptr<Socket> m_source;
+    Ptr<Socket> m_receiver;
+
     // Packets counters
     uint32_t txPacketsCount;
     uint32_t rxPacketsCount;
@@ -155,8 +158,11 @@ SimulationMonitor::SimulationMonitor (double logInterval, const char* logFilenam
 
 void SimulationMonitor::Start(Ptr<Socket> source, Ptr<Socket> receiver)
 {
-  source->SetDataSentCallback (MakeCallback (&SimulationMonitor::SentPacket, this));
-  receiver->SetRecvCallback (MakeCallback (&SimulationMonitor::ReceivedPacket, this));
+  m_source = source;
+  m_receiver = receiver;
+
+  m_source->SetDataSentCallback (MakeCallback (&SimulationMonitor::SentPacket, this));
+  m_receiver->SetRecvCallback (MakeCallback (&SimulationMonitor::ReceivedPacket, this));
 
   this->CalculateMetrics();
 }
@@ -177,6 +183,8 @@ void SimulationMonitor::CalculateMetrics()
   << "PER: " << per << "\t"
   << "BER: " << ber << "\t"
   << kbps << " kbps" << std::endl;
+
+  std::cout << "Position: " << m_source->GetNode()->GetObject<MobilityModel>()->GetPosition() << std::endl;
 
   txPacketsCount = 0;
   rxPacketsCount = 0;
@@ -308,7 +316,9 @@ int main (int argc, char *argv[])
   simMonitor.Start(source, recvSink);
 
   AnimationInterface anim ("animation.xml");
-  anim.EnablePacketMetadata (true);
+  //anim.EnableWifiPhyCounters(Seconds (0.0), Seconds(totalSimTime));
+  //anim.SetMobilityPollInterval(Seconds (0.5));
+  //anim.SkipPacketTracing();
 
   //CheckThroughput();
   Simulator::Stop (Seconds (totalSimTime));
