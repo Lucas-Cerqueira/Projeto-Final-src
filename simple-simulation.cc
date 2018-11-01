@@ -217,11 +217,24 @@ void CheckThroughput()
 int main (int argc, char *argv[])
 {
   std::string phyMode ("OfdmRate6MbpsBW10MHz");
+
+  uint32_t lossModel = 2;
+  uint32_t fading = 1;
   uint32_t packetSize = 1000; // bytes
   uint32_t numPackets = 1000;
+
   double interval = 0.1; // 10 times per second
   double totalSimTime = numPackets * interval + 1;
+  double freq = 5.9e9;
+  double txPower = 10;
+
   bool verbose = false;
+
+  Vector pos_vehA (0.0, 5.0, 1.0);
+  Vector pos_vehB (2000.0, 5.0, 1.0);
+
+  Vector vel_vehA (0.0, 0.0, 0.0);
+  Vector vel_vehB (-40.0, 0.0, 0.0);
 
   CommandLine cmd;
 
@@ -246,12 +259,77 @@ int main (int argc, char *argv[])
   // wifiPhy.Set ("TxPowerEnd", DoubleValue (m_txp));
   // wavePhy.Set ("TxPowerStart",DoubleValue (m_txp));
   // wavePhy.Set ("TxPowerEnd", DoubleValue (m_txp));
-  wifiPhy.Set ("TxPowerStart", DoubleValue (15.0) );
-  wifiPhy.Set ("TxPowerEnd", DoubleValue (15.0) );
+  wifiPhy.Set ("TxPowerStart", DoubleValue (txPower) );
+  wifiPhy.Set ("TxPowerEnd", DoubleValue (txPower) );
 
-  YansWifiChannelHelper wifiChannel = YansWifiChannelHelper::Default ();
+  std::string lossModelName;
+  if (lossModel == 1)
+  {
+    // Default isotropic antenna propagation: P = lambda^2 / (4pi*d)^2
+    lossModelName = "ns3::FriisPropagationLossModel";
+  }
+  else if (lossModel == 2)
+  {
+    // ITU-R 1411 LOS propagation model for Line-of-Sight (LoS) short range outdoor communication in the frequency range 300 MHz to 100 GHz.
+    lossModelName = "ns3::ItuR1411LosPropagationLossModel";
+  }
+  else if (lossModel == 3)
+  {
+    lossModelName = "ns3::TwoRayGroundPropagationLossModel";
+  }
+  else if (lossModel == 4)
+  {
+    // This model calculates the reception power with a so-called log-distance propagation model: $ L = L_0 + 10 n log_{10}(\frac{d}{d_0})$
+    lossModelName = "ns3::LogDistancePropagationLossModel";
+  }
+  else if (lossModel == 5)
+  {
+    // a Jakes narrowband propagation model.
+    //double fd =
+    Config::SetDefault ("ns3::JakesProcess::DopplerFrequencyHz", DoubleValue (750));
+    Config::SetDefault ("ns3::JakesProcess::NumberOfOscillators", UintegerValue (8));
+    lossModelName = "ns3::JakesPropagationLossModel";
+  }
+  else
+  {
+    // Unsupported propagation loss model.
+    // Treating as ERROR
+    NS_LOG_ERROR ("Invalid propagation loss model specified.  Values must be [1-5], where 1=Friis;2=ItuR1411Los;3=TwoRayGround;4=LogDistance;5=Jakes");
+  }
+
+  // Setup propagation models
+  YansWifiChannelHelper wifiChannel;
+  wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
+  if (lossModel == 3)
+    {
+      // two-ray requires antenna height (else defaults to Friss)
+      wifiChannel.AddPropagationLoss (lossModelName, "Frequency", DoubleValue (freq), "HeightAboveZ", DoubleValue (1.5));
+    }
+  else if (lossModel != 5)
+    {
+      wifiChannel.AddPropagationLoss (lossModelName, "Frequency", DoubleValue (freq));
+    }
+
+  // Propagation loss models are additive.
+  if (fading != 0)
+    {
+      // Nakagami model accounts for the variations in signal strength due to multipath fading.
+      // The model does not account for the path loss due to the distance traveled by the signal, hence for typical simulation usage it is recommended to
+      // consider using it in combination with other models that take into account this aspect.
+      /* Parameters:
+        * Distance1: Beginning of the second distance field. Default is 80m.
+        * Distance2: Beginning of the third distance field. Default is 200m.
+        * m0: m0 for distances smaller than Distance1. Default is 1.5.
+        * m1: m1 for distances smaller than Distance2. Default is 0.75.
+        * m2: m2 for distances greater than Distance2. Default is 0.75.
+      */
+      // If m0 = m1 = m2 = 1, the Nakagami-m distribution equals the Rayleigh distribution.
+      wifiChannel.AddPropagationLoss ("ns3::NakagamiPropagationLossModel");
+    }
+
   Ptr<YansWifiChannel> channel = wifiChannel.Create ();
   wifiPhy.SetChannel (channel);
+
   // ns-3 supports generate a pcap trace
   wifiPhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11);
   NqosWaveMacHelper wifi80211pMac = NqosWaveMacHelper::Default ();
@@ -271,8 +349,8 @@ int main (int argc, char *argv[])
 
   MobilityHelper mobility;
   Ptr<ListPositionAllocator> positionAlloc = CreateObject<ListPositionAllocator> ();
-  positionAlloc->Add (Vector (0.0, 5.0, 0.0));
-  positionAlloc->Add (Vector (500.0, -5.0, 0.0));
+  positionAlloc->Add (pos_vehA);
+  positionAlloc->Add (pos_vehB);
   mobility.SetPositionAllocator (positionAlloc);
 
   // mobility.SetMobilityModel ("ns3::ConstantPositionMobilityModel");
@@ -280,13 +358,13 @@ int main (int argc, char *argv[])
 
   mobility.SetMobilityModel ("ns3::ConstantVelocityMobilityModel");
   mobility.Install (c.Get (0));
-  Ptr<ConstantVelocityMobilityModel> constVelocityModel = c.Get (0)->GetObject<ConstantVelocityMobilityModel> ();
-  constVelocityModel->SetVelocity(Vector (5.0, 0.0, 0.0));
+  Ptr<ConstantVelocityMobilityModel> constVelocityModel_A = c.Get (0)->GetObject<ConstantVelocityMobilityModel> ();
+  constVelocityModel_A->SetVelocity (vel_vehA);
 
   mobility.SetMobilityModel ("ns3::ConstantVelocityMobilityModel");
   mobility.Install (c.Get (1));
-  constVelocityModel = c.Get (1)->GetObject<ConstantVelocityMobilityModel> ();
-  constVelocityModel->SetVelocity(Vector (-5.0, 0.0, 0.0));
+  Ptr<ConstantVelocityMobilityModel> constVelocityModel_B = c.Get (1)->GetObject<ConstantVelocityMobilityModel> ();
+  constVelocityModel_B->SetVelocity (vel_vehB);
 
   InternetStackHelper internet;
   internet.Install (c);
