@@ -44,7 +44,9 @@
 #include "ns3/internet-stack-helper.h"
 #include "ns3/ipv4-address-helper.h"
 #include "ns3/ipv4-interface-container.h"
-#include "ns3/netanim-module.h"
+
+#include "ns3/flow-monitor.h"
+#include "ns3/flow-monitor-helper.h"
 
 #include <iostream>
 
@@ -218,9 +220,9 @@ int main (int argc, char *argv[])
 {
   std::string phyMode ("OfdmRate6MbpsBW10MHz");
 
-  uint32_t lossModel = 2;
-  uint32_t fading = 1;
-  uint32_t packetSize = 1000; // bytes
+  uint32_t lossModel = 3;
+  uint32_t fading = 0;
+  uint32_t packetSize = 400; // bytes
   uint32_t numPackets = 1000;
 
   double interval = 0.1; // 10 times per second
@@ -305,7 +307,7 @@ int main (int argc, char *argv[])
       // two-ray requires antenna height (else defaults to Friss)
       wifiChannel.AddPropagationLoss (lossModelName, "Frequency", DoubleValue (freq), "HeightAboveZ", DoubleValue (1.5));
     }
-  else if (lossModel != 5)
+  else if (lossModel != 4 and lossModel != 5)
     {
       wifiChannel.AddPropagationLoss (lossModelName, "Frequency", DoubleValue (freq));
     }
@@ -393,7 +395,7 @@ int main (int argc, char *argv[])
   SimulationMonitor simMonitor (1.0, "teste.csv");
   simMonitor.Start(source, recvSink);
 
-  AnimationInterface anim ("animation.xml");
+  //AnimationInterface anim ("animation.xml");
   //anim.EnableWifiPhyCounters(Seconds (0.0), Seconds(totalSimTime));
   //anim.SetMobilityPollInterval(Seconds (0.5));
   //anim.SkipPacketTracing();
@@ -401,6 +403,7 @@ int main (int argc, char *argv[])
   //CheckThroughput();
   Simulator::Stop (Seconds (totalSimTime));
   Simulator::Run ();
+
   Simulator::Destroy ();
 
   return 0;
