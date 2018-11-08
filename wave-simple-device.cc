@@ -25,12 +25,22 @@
 #include "ns3/yans-wifi-helper.h"
 #include "ns3/mobility-helper.h"
 #include "ns3/seq-ts-header.h"
+
+#include "ns3/wifi-80211p-helper.h"
+#include "ns3/wifi-net-device.h"
+
 #include "ns3/wave-net-device.h"
 #include "ns3/wave-mac-helper.h"
 #include "ns3/wave-helper.h"
-#include "ns3/internet-stack-helper.h"
 
+#include "ns3/internet-stack-helper.h"
 #include "ns3/ipv4-address-helper.h"
+
+#include "ns3/string.h"
+#include "ns3/packet-sink.h"
+#include "ns3/packet-sink-helper.h"
+#include "ns3/on-off-helper.h"
+#include "ns3/data-rate.h"
 
 #include "ns3/flow-monitor.h"
 #include "ns3/flow-monitor-helper.h"
@@ -90,6 +100,9 @@ private:
 
   NodeContainer nodes; ///< the nodes
   NetDeviceContainer devices; ///< the devices
+  Ptr<PacketSink> sink;
+  Ptr<FlowMonitor> flowMonitor;
+  FlowMonitorHelper flowHelper;
 };
 void
 WaveNetDeviceExample::CreateWaveNodes (void)
@@ -109,26 +122,60 @@ WaveNetDeviceExample::CreateWaveNodes (void)
   mobility.Install (nodes);
 
   YansWifiChannelHelper waveChannel = YansWifiChannelHelper::Default ();
-  YansWavePhyHelper wavePhy =  YansWavePhyHelper::Default ();
-  wavePhy.SetChannel (waveChannel.Create ());
-  wavePhy.SetPcapDataLinkType (WifiPhyHelper::DLT_IEEE802_11);
+  Ptr<YansWifiChannel> channel = waveChannel.Create ();
+
+  YansWifiPhyHelper wifiPhy = YansWifiPhyHelper::Default ();
+	wifiPhy.SetErrorRateModel("ns3::NistErrorRateModel");
+	wifiPhy.Set ("Frequency", UintegerValue (5900));
+	wifiPhy.Set ("TxPowerStart", DoubleValue(23));
+	wifiPhy.Set ("TxPowerEnd", DoubleValue (23));
+	wifiPhy.Set ("ChannelNumber", UintegerValue (180));
+	wifiPhy.Set ("ChannelWidth", UintegerValue (10));
+	wifiPhy.SetChannel (channel);
+	wifiPhy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11);
+
+
+	//WAVE Helper
+	YansWavePhyHelper wavePhy = YansWavePhyHelper::Default ();
+	wavePhy.SetErrorRateModel("ns3::NistErrorRateModel");
+	wavePhy.Set ("Frequency", UintegerValue (5900));
+	wavePhy.Set ("TxPowerStart", DoubleValue(23));
+	wavePhy.Set ("TxPowerEnd", DoubleValue (23));
+	wavePhy.Set ("ChannelNumber", UintegerValue (180));
+	wavePhy.Set ("ChannelWidth", UintegerValue (10));
+	wavePhy.SetChannel (channel);
+	wavePhy.SetPcapDataLinkType (YansWifiPhyHelper::DLT_IEEE802_11);
+
   QosWaveMacHelper waveMac = QosWaveMacHelper::Default ();
+  NqosWaveMacHelper wifi80211pMac = NqosWaveMacHelper::Default ();
+
+  std::string phyMode = "OfdmRate6MbpsBW10MHz";
+  Wifi80211pHelper wifi80211pHelper = Wifi80211pHelper::Default ();
+  wifi80211pHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
+                                            "DataMode", StringValue (phyMode),
+                                            "ControlMode", StringValue (phyMode));
+
   WaveHelper waveHelper = WaveHelper::Default ();
-  devices = waveHelper.Install (wavePhy, waveMac, nodes);
+  waveHelper.SetRemoteStationManager ("ns3::ConstantRateWifiManager",
+                                      "DataMode", StringValue (phyMode),
+                                      "ControlMode", StringValue (phyMode));
+
+  devices = wifi80211pHelper.Install (wifiPhy, wifi80211pMac, nodes);
+  //devices = waveHelper.Install (wavePhy, waveMac, nodes);
 
   Ipv4AddressHelper ipv4;
   ipv4.SetBase ("10.1.1.0", "255.255.255.0");
   Ipv4InterfaceContainer i = ipv4.Assign (devices);
 
-  for (uint32_t i = 0; i != devices.GetN (); ++i)
-    {
-      Ptr<WaveNetDevice> device = DynamicCast<WaveNetDevice> (devices.Get (i));
-      device->SetReceiveCallback (MakeCallback (&WaveNetDeviceExample::Receive, this));
-      device->SetWaveVsaCallback (MakeCallback (&WaveNetDeviceExample::ReceiveVsa, this));
-    }
+  // for (uint32_t i = 0; i != devices.GetN (); ++i)
+  //   {
+  //     Ptr<WaveNetDevice> device = DynamicCast<WaveNetDevice> (devices.Get (i));
+  //     device->SetReceiveCallback (MakeCallback (&WaveNetDeviceExample::Receive, this));
+  //     //device->SetWaveVsaCallback (MakeCallback (&WaveNetDeviceExample::ReceiveVsa, this));
+  //   }
 
   // Tracing
-  wavePhy.EnablePcap ("wave-simple-device", devices);
+  //wavePhy.EnablePcap ("wave-simple-device", devices);
 }
 
 bool
@@ -145,61 +192,13 @@ WaveNetDeviceExample::Receive (Ptr<NetDevice> dev, Ptr<const Packet> pkt, uint16
 }
 
 void
-WaveNetDeviceExample::SendOneWsmpPacket  (uint32_t channel, uint32_t seq)
-{
-  Ptr<WaveNetDevice>  sender = DynamicCast<WaveNetDevice> (devices.Get (0));
-  Ptr<WaveNetDevice>  receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
-  const static uint16_t WSMP_PROT_NUMBER = 0x88DC;
-  Mac48Address bssWildcard = Mac48Address::GetBroadcast ();
-
-  const TxInfo txInfo = TxInfo (channel);
-  Ptr<Packet> p  = Create<Packet> (100);
-  SeqTsHeader seqTs;
-  seqTs.SetSeq (seq);
-  p->AddHeader (seqTs);
-  sender->SendX  (p, bssWildcard, WSMP_PROT_NUMBER, txInfo);
-}
-
-void
-WaveNetDeviceExample::SendWsmpExample ()
-{
-  CreateWaveNodes ();
-  Ptr<WaveNetDevice>  sender = DynamicCast<WaveNetDevice> (devices.Get (0));
-  Ptr<WaveNetDevice>  receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
-
-  // Alternating access without immediate channel switch
-  const SchInfo schInfo = SchInfo (SCH1, false, EXTENDED_ALTERNATING);
-  Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch,sender,schInfo);
-  // An important point is that the receiver should also be assigned channel
-  // access for the same channel to receive packets.
-  Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, receiver, schInfo);
-
-  // send WSMP packets
-  // the first packet will be queued currently and be transmitted in next SCH interval
-  Simulator::Schedule (Seconds (1.0), &WaveNetDeviceExample::SendOneWsmpPacket,  this, SCH1, 1);
-  // the second packet will be queued currently and then be transmitted , because of in the CCH interval.
-  Simulator::Schedule (Seconds (1.0), &WaveNetDeviceExample::SendOneWsmpPacket,  this, CCH, 2);
-  // the third packet will be dropped because of no channel access for SCH2.
-  Simulator::Schedule (Seconds (1.0), &WaveNetDeviceExample::SendOneWsmpPacket,  this, SCH2, 3);
-
-  // release SCH access
-  Simulator::Schedule (Seconds (2.0), &WaveNetDevice::StopSch, sender, SCH1);
-  Simulator::Schedule (Seconds (2.0), &WaveNetDevice::StopSch, receiver, SCH1);
-  // the fourth packet will be queued and be transmitted because of default CCH access assigned automatically.
-  Simulator::Schedule (Seconds (3.0), &WaveNetDeviceExample::SendOneWsmpPacket,  this, CCH, 4);
-  // the fifth packet will be dropped because of no SCH1 access assigned
-  Simulator::Schedule (Seconds (3.0), &WaveNetDeviceExample::SendOneWsmpPacket,  this, SCH1, 5);
-
-  Simulator::Stop (Seconds (5.0));
-  Simulator::Run ();
-  Simulator::Destroy ();
-}
-
-void
 WaveNetDeviceExample::SendIpPacket (uint32_t seq, bool ipv6)
 {
-  Ptr<WaveNetDevice>  sender = DynamicCast<WaveNetDevice> (devices.Get (0));
-  Ptr<WaveNetDevice>  receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
+  Ptr<WifiNetDevice> sender = DynamicCast<WifiNetDevice> (devices.Get (0));
+  Ptr<WifiNetDevice> receiver = DynamicCast<WifiNetDevice> (devices.Get (1));
+  // Ptr<WaveNetDevice> sender = DynamicCast<WaveNetDevice> (devices.Get (0));
+  // Ptr<WaveNetDevice> receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
+
   const Address dest = receiver->GetAddress ();
   // send IPv4 packet or IPv6 packet
   const static uint16_t IPv4_PROT_NUMBER = 0x0800;
@@ -215,40 +214,48 @@ WaveNetDeviceExample::SendIpPacket (uint32_t seq, bool ipv6)
 void
 WaveNetDeviceExample::SendIpExample ()
 {
+  uint16_t port = 9;
+  double duration = 10;
   CreateWaveNodes ();
-  Ptr<WaveNetDevice>  sender = DynamicCast<WaveNetDevice> (devices.Get (0));
-  Ptr<WaveNetDevice>  receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
+  // Configure channel access
+  // Ptr<WaveNetDevice> sender = DynamicCast<WaveNetDevice> (devices.Get (0));
+  // Ptr<WaveNetDevice> receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
+  // const SchInfo schInfo = SchInfo (CH180, false, EXTENDED_CONTINUOUS);
+  // Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, sender, schInfo);
+  // Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, receiver, schInfo);
+  // Simulator::Schedule (Seconds (duration), &WaveNetDevice::StopSch, sender, CH180);
+  // Simulator::Schedule (Seconds (duration), &WaveNetDevice::StopSch, receiver, CH180);
+  // // Register txprofile
+  // const TxProfile txProfile = TxProfile (CH180);
+  // Simulator::Schedule (Seconds (0.0), &WaveNetDevice::RegisterTxProfile, sender, txProfile);
+  // Simulator::Schedule (Seconds (duration), &WaveNetDevice::DeleteTxProfile, sender, CH180);
 
-  // Alternating access without immediate channel switch
-  const SchInfo schInfo = SchInfo (SCH1, false, EXTENDED_ALTERNATING);
-  Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, sender, schInfo);
-  // An important point is that the receiver should also be assigned channel
-  // access for the same channel to receive packets.
-  Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, receiver, schInfo);
+  // Setup node 0 as transmitter and node 1 as sink
+  Ptr<Node> txNode = nodes.Get(0);
+  Ptr<Node> sinkNode = nodes.Get(1);
+  Ptr<Ipv4> ipv4 = sinkNode->GetObject<Ipv4>();
+  PacketSinkHelper sinkHelper ("ns3::TcpSocketFactory", InetSocketAddress (ipv4->GetAddress(1,0).GetLocal(), port));
+  ApplicationContainer sinkApp = sinkHelper.Install (sinkNode);
+  sink = StaticCast<PacketSink> (sinkApp.Get(0));
 
-  // both IPv4 and IPv6 packets below will not be inserted to internal queue because of no tx profile registered
-  Simulator::Schedule (Seconds (1.0), &WaveNetDeviceExample::SendIpPacket, this, 1, true);
-  Simulator::Schedule (Seconds (1.050), &WaveNetDeviceExample::SendIpPacket, this, 2, false);
-  //register txprofile
-  // IP packets will automatically be sent with txprofile parameter
-  const TxProfile txProfile = TxProfile (SCH1);
-  Simulator::Schedule (Seconds (2.0), &WaveNetDevice::RegisterTxProfile, sender, txProfile);
-  // both IPv4 and IPv6 packet are transmitted successfully
-  Simulator::Schedule (Seconds (3.0), &WaveNetDeviceExample::SendIpPacket, this, 3, true);
-  Simulator::Schedule (Seconds (3.050), &WaveNetDeviceExample::SendIpPacket, this, 4, false);
-  // unregister TxProfile or release channel access
-  Simulator::Schedule (Seconds (4.0),&WaveNetDevice::DeleteTxProfile, sender,SCH1);
-  Simulator::Schedule (Seconds (4.0),&WaveNetDevice::StopSch, sender,SCH1);
-  Simulator::Schedule (Seconds (4.0),&WaveNetDevice::StopSch, receiver, SCH1);
-  // these packets will be dropped again because of no channel access assigned and no tx profile registered
-  Simulator::Schedule (Seconds (5.0), &WaveNetDeviceExample::SendIpPacket, this, 5, true);
-  Simulator::Schedule (Seconds (5.050), &WaveNetDeviceExample::SendIpPacket, this, 6, false);
+  OnOffHelper txHelper ("ns3::TcpSocketFactory", InetSocketAddress (ipv4->GetAddress(1,0).GetLocal(), port));
+  txHelper.SetAttribute ("PacketSize", UintegerValue (400));
+  txHelper.SetAttribute ("OnTime", StringValue ("ns3::ConstantRandomVariable[Constant=1]"));
+  txHelper.SetAttribute ("OffTime", StringValue ("ns3::ConstantRandomVariable[Constant=0]"));
+  txHelper.SetAttribute ("DataRate", DataRateValue (DataRate ("6Mbps")));
+  ApplicationContainer txApp = txHelper.Install (txNode);
 
-  Ptr<FlowMonitor> flowMonitor;
-  FlowMonitorHelper flowHelper;
+  // Start the Applications
+  sinkApp.Start (Seconds (0.0));
+  txApp.Start (Seconds (2.0));
+  sinkApp.Stop (Seconds (duration));
+  txApp.Stop (Seconds (duration));
+
   flowMonitor = flowHelper.InstallAll();
 
-  Simulator::Stop (Seconds (6.0));
+  std::cout << "All setup" << std::endl;
+
+  Simulator::Stop (Seconds (duration));
   Simulator::Run ();
 
   flowMonitor->CheckForLostPackets();
@@ -257,52 +264,12 @@ WaveNetDeviceExample::SendIpExample ()
   Simulator::Destroy ();
 }
 
-bool
-WaveNetDeviceExample::ReceiveVsa (Ptr<const Packet> pkt,const Address & address, uint32_t, uint32_t)
-{
-  std::cout << "receive a VSA management frame: recvTime = " << Now ().GetSeconds () << "s." << std::endl;
-  return true;
-}
-
-void
-WaveNetDeviceExample::SendWsaExample ()
-{
-  CreateWaveNodes ();
-  Ptr<WaveNetDevice>  sender = DynamicCast<WaveNetDevice> (devices.Get (0));
-  Ptr<WaveNetDevice>  receiver = DynamicCast<WaveNetDevice> (devices.Get (1));
-
-// Alternating access without immediate channel switch for sender and receiver
-  const SchInfo schInfo = SchInfo (SCH1, false, EXTENDED_ALTERNATING);
-  Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, sender, schInfo);
-  Simulator::Schedule (Seconds (0.0), &WaveNetDevice::StartSch, receiver, schInfo);
-
-// the peer address of VSA is broadcast address, and the repeat rate
-// of VsaInfo is 100 per 5s, the VSA frame will be sent repeatedly.
-  Ptr<Packet> wsaPacket = Create<Packet> (100);
-  Mac48Address dest = Mac48Address::GetBroadcast ();
-  const VsaInfo vsaInfo = VsaInfo (dest, OrganizationIdentifier (), 0, wsaPacket, SCH1, 100, VSA_TRANSMIT_IN_BOTHI);
-  Simulator::Schedule (Seconds (1.0), &WaveNetDevice::StartVsa, sender, vsaInfo);
-  Simulator::Schedule (Seconds (3.0), &WaveNetDevice::StopVsa, sender, SCH1);
-
-// release alternating access
-  Simulator::Schedule (Seconds (4.0), &WaveNetDevice::StopSch, sender, SCH1);
-  Simulator::Schedule (Seconds (4.0), &WaveNetDevice::StopSch, receiver, SCH1);
-
-// these WSA packets cannot be transmitted because of no channel access assigned
-  Simulator::Schedule (Seconds (5.0), &WaveNetDevice::StartVsa, sender, vsaInfo);
-  Simulator::Schedule (Seconds (6.0), &WaveNetDevice::StopVsa, sender, SCH1);
-
-  Simulator::Stop (Seconds (6.0));
-  Simulator::Run ();
-  Simulator::Destroy ();
-}
-
 int
 main (int argc, char *argv[])
 {
   CommandLine cmd;
   cmd.Parse (argc, argv);
-  
+
   WaveNetDeviceExample example;
   //std::cout << "run WAVE WSMP routing service case:" << std::endl;
   //example.SendWsmpExample ();
