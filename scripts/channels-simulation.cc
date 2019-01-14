@@ -29,6 +29,7 @@
  * to "Outside the Context of a BSS")."
  */
 
+#include "ns3/gnuplot.h"
 #include "ns3/vector.h"
 #include "ns3/string.h"
 #include "ns3/socket.h"
@@ -44,13 +45,22 @@
 #include "ns3/internet-stack-helper.h"
 #include "ns3/ipv4-address-helper.h"
 #include "ns3/ipv4-interface-container.h"
-#include "ns3/netanim-module.h"
+
+#include "ns3/attribute.h"
+#include "ns3/random-variable-stream.h"
+
+#include "ns3/flow-monitor.h"
+#include "ns3/flow-monitor-helper.h"
 
 #include <iostream>
+#include <sstream>
 
 #include "ns3/ocb-wifi-mac.h"
 #include "ns3/wifi-80211p-helper.h"
 #include "ns3/wave-mac-helper.h"
+
+#include "ns3/volvo-propagation-loss-model.h"
+#include "ns3/two-ray-propagation-loss-model.h"
 
 using namespace ns3;
 
@@ -80,11 +90,17 @@ NS_LOG_COMPONENT_DEFINE ("WifiSimpleOcb");
 class SimulationMonitor
 {
   private:
+    Gnuplot2dDataset m_output;
+
     double logInterval; // seconds
     const char* logFilename;
 
+    NodeContainer m_nodeC;
+
     Ptr<Socket> m_source;
     Ptr<Socket> m_receiver;
+
+    double distance;
 
     // Packets counters
     uint32_t txPacketsCount;
@@ -104,8 +120,13 @@ class SimulationMonitor
   public:
     SimulationMonitor(double logInterval, const char* logFilename);
 
-    void Start(Ptr<Socket> source, Ptr<Socket> receiver);
+    //void Start(Ptr<Socket> source, Ptr<Socket> receiver);
+    void Start(NodeContainer nodeC, Ptr<Socket> source, Ptr<Socket> receiver);
     void CalculateMetrics();
+
+    double GetNodeRelDistance();
+
+    Gnuplot2dDataset GetGnuOutput();
     // void StopAndSaveResults();
     //
     // uint32_t GetTxPacketsCount();
@@ -119,6 +140,23 @@ class SimulationMonitor
     // uint32_t GetCumulativeRxBytesCount();
 };
 
+SimulationMonitor::SimulationMonitor (double logInterval, const char* logFilename)
+  : m_output("Teste plot"),
+    logInterval (logInterval),
+    logFilename (logFilename),
+    txPacketsCount (0),
+    rxPacketsCount (0),
+    cumulativeTxPacketsCount (0),
+    cumulativeRxPacketsCount (0),
+    txBytesCount (0),
+    rxBytesCount (0),
+    cumulativeTxBytesCount (0),
+    cumulativeRxBytesCount (0)
+{
+  m_output.SetStyle (Gnuplot2dDataset::LINES);
+  std::cout << "Creating new SimulationMonitor" << std::endl;
+}
+
 void SimulationMonitor::SentPacket (Ptr<Socket> socket, uint32_t packetSize)
 {
   //std::cout << "Packet sent: " << packetSize << "bytes" << std::endl;
@@ -128,8 +166,25 @@ void SimulationMonitor::SentPacket (Ptr<Socket> socket, uint32_t packetSize)
   cumulativeTxBytesCount += packetSize;
 }
 
+double SimulationMonitor::GetNodeRelDistance()
+{
+  Ptr<MobilityModel> model1 = m_nodeC.Get(0)->GetObject<MobilityModel>();
+  Ptr<MobilityModel> model2 = m_nodeC.Get(1)->GetObject<MobilityModel>();
+  double newDistance = model1->GetDistanceFrom (model2);
+  // Approaching each other
+  if (newDistance < distance)
+  {
+    distance = newDistance;
+    return distance;
+  }
+  // Getting farther from each other
+  distance = newDistance;
+  return -distance;
+}
+
 void SimulationMonitor::ReceivedPacket (Ptr<Socket> socket)
 {
+  //std::cout << "Packet received!" << std::endl;
   Ptr<Packet> packet = socket->Recv ();
   while (packet)
     {
@@ -141,28 +196,18 @@ void SimulationMonitor::ReceivedPacket (Ptr<Socket> socket)
     }
 }
 
-SimulationMonitor::SimulationMonitor (double logInterval, const char* logFilename)
-  : logInterval (logInterval),
-    logFilename (logFilename),
-    txPacketsCount (0),
-    rxPacketsCount (0),
-    cumulativeTxPacketsCount (0),
-    cumulativeRxPacketsCount (0),
-    txBytesCount (0),
-    rxBytesCount (0),
-    cumulativeTxBytesCount (0),
-    cumulativeRxBytesCount (0)
+void SimulationMonitor::Start(NodeContainer nodeC, Ptr<Socket> source, Ptr<Socket> receiver)
 {
-  std::cout << "Creating new SimulationMonitor" << std::endl;
-}
-
-void SimulationMonitor::Start(Ptr<Socket> source, Ptr<Socket> receiver)
-{
+  m_nodeC = nodeC;
   m_source = source;
   m_receiver = receiver;
 
   m_source->SetDataSentCallback (MakeCallback (&SimulationMonitor::SentPacket, this));
   m_receiver->SetRecvCallback (MakeCallback (&SimulationMonitor::ReceivedPacket, this));
+
+  Ptr<MobilityModel> model1 = m_nodeC.Get(0)->GetObject<MobilityModel>();
+  Ptr<MobilityModel> model2 = m_nodeC.Get(1)->GetObject<MobilityModel>();
+  distance = model1->GetDistanceFrom (model2);
 
   this->CalculateMetrics();
 }
@@ -179,18 +224,29 @@ void SimulationMonitor::CalculateMetrics()
   double per = (float)(txPacketsCount - rxPacketsCount)/(float)txPacketsCount;
   double ber = (float)(txBytesCount - rxBytesCount)/(float)txBytesCount;
 
+  double distance = GetNodeRelDistance();
+
   std::cout << "Time: " << (Simulator::Now ()).GetSeconds () << "s" << "\t"
+  << "Distance: " << distance << "m" << "\t"
   << "PER: " << per << "\t"
   << "BER: " << ber << "\t"
   << kbps << " kbps" << std::endl;
 
-  std::cout << "Position: " << m_source->GetNode()->GetObject<MobilityModel>()->GetPosition() << std::endl;
+  //std::cout << "Position: " << m_source->GetNode()->GetObject<MobilityModel>()->GetPosition() << std::endl;
+
+  //m_output.Add ((Simulator::Now ()).GetSeconds (), per);
+  m_output.Add (distance, per);
 
   txPacketsCount = 0;
   rxPacketsCount = 0;
   txBytesCount = 0;
   rxBytesCount = 0;
   Simulator::Schedule (Seconds (this->logInterval), &SimulationMonitor::CalculateMetrics, this);
+}
+
+Gnuplot2dDataset SimulationMonitor::GetGnuOutput()
+{
+  return m_output;
 }
 
 static void GenerateTraffic (Ptr<Socket> socket, uint32_t pktSize,
@@ -214,36 +270,52 @@ void CheckThroughput()
   Simulator::Schedule (Seconds (1.0), &CheckThroughput);
 }
 
+
+
 int main (int argc, char *argv[])
 {
   std::string phyMode ("OfdmRate6MbpsBW10MHz");
 
-  uint32_t lossModel = 2;
-  uint32_t fading = 1;
-  uint32_t packetSize = 1000; // bytes
+  uint32_t lossModel = 1;
+  /*
+  lossModel = 1 -> Volvo LOS Highway
+  lossModel = 2 -> Volvo LOS Urban
+  lossModel = 3 -> Volvo OLOS Highway
+  lossModel = 4 -> Volvo OLOS Urban
+  lossModel = 5 -> Kunisch Highway
+  lossModel = 6 -> Kunisch Urban
+  lossModel = 7 -> Kunisch Rural
+  */
+  uint32_t fading = 0;
+  uint32_t packetSize = 400; // bytes
   uint32_t numPackets = 1000;
 
+  // double awgnVariance = -1;
+  double awgnVariance = 0;
   double interval = 0.1; // 10 times per second
   double totalSimTime = numPackets * interval + 1;
   double freq = 5.9e9;
-  double txPower = 10;
+  double txPower = 15;
 
   bool verbose = false;
 
-  Vector pos_vehA (0.0, 5.0, 1.0);
-  Vector pos_vehB (2000.0, 5.0, 1.0);
+  Vector pos_vehA (0.0, 5.0, 0.0);
+  Vector pos_vehB (1000.0, 5.0, 0.0);
 
   Vector vel_vehA (0.0, 0.0, 0.0);
-  Vector vel_vehB (-40.0, 0.0, 0.0);
+  Vector vel_vehB (-10.0, 0.0, 0.0);
 
   CommandLine cmd;
 
+  cmd.AddValue ("lossModel", "loss model", lossModel);
   cmd.AddValue ("phyMode", "Wifi Phy mode", phyMode);
   cmd.AddValue ("packetSize", "size of application packet sent", packetSize);
   cmd.AddValue ("numPackets", "number of packets generated", numPackets);
   cmd.AddValue ("interval", "interval (seconds) between packets", interval);
   cmd.AddValue ("verbose", "turn on all WifiNetDevice log components", verbose);
   cmd.Parse (argc, argv);
+
+  std::cout << "Loss model: " << lossModel << std::endl;
   // Convert to time object
   Time interPacketInterval = Seconds (interval);
 
@@ -253,62 +325,125 @@ int main (int argc, char *argv[])
 
   // The below set of helpers will help us to put together the wifi NICs we want
   YansWifiPhyHelper wifiPhy =  YansWifiPhyHelper::Default ();
+
   // Set Tx Power
   // "Users who want to obtain longer range should configure attributes “TxPowerStart”, “TxPowerEnd” and “TxPowerLevels” of the YansWifiPhy class by themselves."
-  // wifiPhy.Set ("TxPowerStart",DoubleValue (m_txp));
-  // wifiPhy.Set ("TxPowerEnd", DoubleValue (m_txp));
   // wavePhy.Set ("TxPowerStart",DoubleValue (m_txp));
   // wavePhy.Set ("TxPowerEnd", DoubleValue (m_txp));
   wifiPhy.Set ("TxPowerStart", DoubleValue (txPower) );
   wifiPhy.Set ("TxPowerEnd", DoubleValue (txPower) );
 
-  std::string lossModelName;
+  // std::string lossModelName;
+  YansWifiChannelHelper wifiChannel;
+  // Volvo LOS Highway
   if (lossModel == 1)
   {
-    // Default isotropic antenna propagation: P = lambda^2 / (4pi*d)^2
-    lossModelName = "ns3::FriisPropagationLossModel";
+    // LOS Highway
+    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+                                    "Distance0", DoubleValue (10.0),
+                                    "Distance1", DoubleValue (104.0), // Paper
+                                    "Distance2", DoubleValue(1e6), // "Infinite"
+                                    "Exponent0", DoubleValue(1.66),
+                                    "Exponent1", DoubleValue(2.88),
+                                    "ReferenceLoss", DoubleValue(66.1));
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(3.95, 2.0);
   }
+  // Volvo LOS Urban
   else if (lossModel == 2)
   {
-    // ITU-R 1411 LOS propagation model for Line-of-Sight (LoS) short range outdoor communication in the frequency range 300 MHz to 100 GHz.
-    lossModelName = "ns3::ItuR1411LosPropagationLossModel";
+    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+                                    "Distance0", DoubleValue (10.0),
+                                    "Distance1", DoubleValue (104.0), // Paper
+                                    "Distance2", DoubleValue(1e6), // "Infinite"
+                                    "Exponent0", DoubleValue(1.81),
+                                    "Exponent1", DoubleValue(2.85),
+                                    "ReferenceLoss", DoubleValue(63.9));
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(4.15, 2.0);
   }
+  // Volvo OLOS Highway
+  // OLOS Highway - QUAL O N1?
   else if (lossModel == 3)
   {
-    lossModelName = "ns3::TwoRayGroundPropagationLossModel";
+    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+                                    "Distance0", DoubleValue (10.0),
+                                    "Distance1", DoubleValue (104.0), // Paper
+                                    "Distance2", DoubleValue(1e6), // "Infinite"
+                                    "Exponent0", DoubleValue(0.0),
+                                    "Exponent1", DoubleValue(3.18),
+                                    "ReferenceLoss", DoubleValue(76.1));
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(6.12, 2.0);
   }
+  // Volvo OLOS Urban
   else if (lossModel == 4)
   {
-    // This model calculates the reception power with a so-called log-distance propagation model: $ L = L_0 + 10 n log_{10}(\frac{d}{d_0})$
-    lossModelName = "ns3::LogDistancePropagationLossModel";
+    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+                                    "Distance0", DoubleValue (10.0),
+                                    "Distance1", DoubleValue (104.0), // Paper
+                                    "Distance2", DoubleValue(1e6), // "Infinite"
+                                    "Exponent0", DoubleValue(1.93),
+                                    "Exponent1", DoubleValue(2.74),
+                                    "ReferenceLoss", DoubleValue(72.3));
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(6.67, 2.0);
   }
+  // Kunisch Highway
   else if (lossModel == 5)
   {
-    // a Jakes narrowband propagation model.
-    //double fd =
-    Config::SetDefault ("ns3::JakesProcess::DopplerFrequencyHz", DoubleValue (750));
-    Config::SetDefault ("ns3::JakesProcess::NumberOfOscillators", UintegerValue (8));
-    lossModelName = "ns3::JakesPropagationLossModel";
+    // default is the highway model
+    wifiChannel.AddPropagationLoss ("ns3::KunischTwoRayPropagationLossModel");
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(2.3, 2.0);
+  }
+  // Kunisch Urban
+  else if (lossModel == 6)
+  {
+    wifiChannel.AddPropagationLoss ("ns3::LogDistancePropagationLossModel",
+                                    "Exponent", DoubleValue (1.61),
+                                    "ReferenceDistance", DoubleValue (1.0),
+                                    "ReferenceLoss", DoubleValue (68.5));
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(3.4, 2.0);
+  }
+  // Kunisch Rural
+  else if (lossModel == 7)
+  {
+    wifiChannel.AddPropagationLoss ("ns3::KunischTwoRayPropagationLossModel",
+                                    "Frequency", DoubleValue (freq),
+                                    "HeightAboveZ", DoubleValue (1.8),
+                                    "BaseGain", DoubleValue(-9.5),
+                                    "ReflectionCoefficientMag", DoubleValue(0.264),
+                                    "ReflectionCoefficientPhase", DoubleValue(-158));
+    if (awgnVariance != 0)
+      awgnVariance = std::pow(2.7, 2.0);
   }
   else
   {
-    // Unsupported propagation loss model.
-    // Treating as ERROR
-    NS_LOG_ERROR ("Invalid propagation loss model specified.  Values must be [1-5], where 1=Friis;2=ItuR1411Los;3=TwoRayGround;4=LogDistance;5=Jakes");
+    std:: cout  << "Invalid propagation loss model specified.\n" <<
+    "Values must be [1-7], where:\n" <<
+    "1: Volvo LOS Highway\n" <<
+    "2: Volvo LOS Urban\n" <<
+    "3: Volvo OLOS Highway\n" <<
+    "4: Volvo OLOS Urban\n" <<
+    "5: Kunisch Highway\n" <<
+    "6: Kunisch Urban\n" <<
+    "7: Kunisch Rural\n";
+   return -1;
+  }
+
+  if (awgnVariance != -1)
+  {
+    std::ostringstream ostr;
+    ostr << "ns3::NormalRandomVariable[Mean=0.0|Variance=" << awgnVariance << "]";
+    std::string randomString = ostr.str();
+    wifiChannel.AddPropagationLoss ("ns3::RandomPropagationLossModel",
+                                    "Variable", StringValue(randomString));
   }
 
   // Setup propagation models
-  YansWifiChannelHelper wifiChannel;
   wifiChannel.SetPropagationDelay ("ns3::ConstantSpeedPropagationDelayModel");
-  if (lossModel == 3)
-    {
-      // two-ray requires antenna height (else defaults to Friss)
-      wifiChannel.AddPropagationLoss (lossModelName, "Frequency", DoubleValue (freq), "HeightAboveZ", DoubleValue (1.5));
-    }
-  else if (lossModel != 5)
-    {
-      wifiChannel.AddPropagationLoss (lossModelName, "Frequency", DoubleValue (freq));
-    }
 
   // Propagation loss models are additive.
   if (fading != 0)
@@ -391,16 +526,45 @@ int main (int argc, char *argv[])
                                   source, packetSize, numPackets, interPacketInterval);
 
   SimulationMonitor simMonitor (1.0, "teste.csv");
-  simMonitor.Start(source, recvSink);
+  //simMonitor.Start(source, recvSink);
+  simMonitor.Start(c, source, recvSink);
 
-  AnimationInterface anim ("animation.xml");
+  //AnimationInterface anim ("animation.xml");
   //anim.EnableWifiPhyCounters(Seconds (0.0), Seconds(totalSimTime));
   //anim.SetMobilityPollInterval(Seconds (0.5));
   //anim.SkipPacketTracing();
 
   //CheckThroughput();
+
   Simulator::Stop (Seconds (totalSimTime));
   Simulator::Run ();
+
+  //std::ofstream outfile (("per_time.plt").c_str ());
+  std::string fileNameWithNoExtension = "per_distance";
+  std::string graphicsFileName        = fileNameWithNoExtension + ".png";
+  std::string plotFileName            = fileNameWithNoExtension + ".plt";
+
+  Gnuplot plot (graphicsFileName);
+  plot.SetTitle (std::string("PER over distance"));
+
+  // Make the graphics file, which the plot file will create when it
+  // is used with Gnuplot, be a PNG file.
+  plot.SetTerminal ("png");
+
+  // Set the labels for each axis.
+  plot.SetLegend ("Relative distance", "PER");
+
+  Gnuplot2dDataset dataset = simMonitor.GetGnuOutput();
+  plot.AddDataset (dataset);
+
+  std::ofstream plotFile (plotFileName.c_str());
+
+  // Write the plot file.
+  plot.GenerateOutput (plotFile);
+
+  // Close the plot file.
+  plotFile.close ();
+
   Simulator::Destroy ();
 
   return 0;
