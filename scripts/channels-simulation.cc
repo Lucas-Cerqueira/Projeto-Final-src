@@ -59,7 +59,7 @@
 #include "ns3/wifi-80211p-helper.h"
 #include "ns3/wave-mac-helper.h"
 
-#include "ns3/volvo-propagation-loss-model.h"
+#include "ns3/dual-log-distance-propagation-loss-model.h"
 #include "ns3/two-ray-propagation-loss-model.h"
 
 using namespace ns3;
@@ -339,10 +339,9 @@ int main (int argc, char *argv[])
   if (lossModel == 1)
   {
     // LOS Highway
-    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+    wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Distance2", DoubleValue(1e6), // "Infinite"
                                     "Exponent0", DoubleValue(1.66),
                                     "Exponent1", DoubleValue(2.88),
                                     "ReferenceLoss", DoubleValue(66.1));
@@ -352,10 +351,9 @@ int main (int argc, char *argv[])
   // Volvo LOS Urban
   else if (lossModel == 2)
   {
-    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+    wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Distance2", DoubleValue(1e6), // "Infinite"
                                     "Exponent0", DoubleValue(1.81),
                                     "Exponent1", DoubleValue(2.85),
                                     "ReferenceLoss", DoubleValue(63.9));
@@ -366,10 +364,9 @@ int main (int argc, char *argv[])
   // OLOS Highway - QUAL O N1?
   else if (lossModel == 3)
   {
-    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+    wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Distance2", DoubleValue(1e6), // "Infinite"
                                     "Exponent0", DoubleValue(0.0),
                                     "Exponent1", DoubleValue(3.18),
                                     "ReferenceLoss", DoubleValue(76.1));
@@ -379,10 +376,9 @@ int main (int argc, char *argv[])
   // Volvo OLOS Urban
   else if (lossModel == 4)
   {
-    wifiChannel.AddPropagationLoss ("ns3::ThreeLogDistancePropagationLossModel",
+    wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Distance2", DoubleValue(1e6), // "Infinite"
                                     "Exponent0", DoubleValue(1.93),
                                     "Exponent1", DoubleValue(2.74),
                                     "ReferenceLoss", DoubleValue(72.3));
@@ -414,8 +410,17 @@ int main (int argc, char *argv[])
                                     "Frequency", DoubleValue (freq),
                                     "HeightAboveZ", DoubleValue (1.8),
                                     "BaseGain", DoubleValue(-9.5),
+                                    "MinDistance", DoubleValue(10),
                                     "ReflectionCoefficientMag", DoubleValue(0.264),
                                     "ReflectionCoefficientPhase", DoubleValue(-158));
+
+    // wifiChannel.AddPropagationLoss ("ns3::KunischTwoRayPropagationLossModel",
+    //                                 "Frequency", DoubleValue (5.2e9),
+    //                                 "HeightAboveZ", DoubleValue (2.53),
+    //                                 "BaseGain", DoubleValue(7.3),
+    //                                 "MinDistance", DoubleValue(20),
+    //                                 "ReflectionCoefficientMag", DoubleValue(0.44),
+    //                                 "ReflectionCoefficientPhase", DoubleValue(-131));
     if (awgnVariance != 0)
       awgnVariance = std::pow(2.7, 2.0);
   }

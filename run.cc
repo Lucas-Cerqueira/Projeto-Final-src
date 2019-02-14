@@ -1,4 +1,5 @@
 // NS_LOG="YansWifiChannel" ./waf --run "channels-simulation --lossModel=6" 2>&1 | awk '/propagation/{print > "kunisch_urban.log"}'
+// ./run "channels-simulation --lossModel=7" -f "propagation" -l "YansWifiChannel" -o "kunisch_rural.log"
 #include <iostream>
 #include <sstream>
 #include <fstream>
@@ -77,15 +78,15 @@ int main (int argc, char *argv[])
   {
     switch (c)
     {
-      case 'l':
+      case 'l': // Log module
         logModule = optarg;
         break;
 
-      case 'o':
+      case 'o': // Output file
         outputFile = optarg;
         break;
 
-      case 'f':
+      case 'f': // Filter string
         filterString = optarg;
         break;
     }

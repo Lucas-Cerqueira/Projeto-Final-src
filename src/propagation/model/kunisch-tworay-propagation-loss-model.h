@@ -1,22 +1,7 @@
 /* -*- Mode:C++; c-file-style:"gnu"; indent-tabs-mode:nil; -*- */
 /*
- * Copyright (c) 2007,2008, 2009 INRIA, UDcast
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 as
- * published by the Free Software Foundation;
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
- *
- * You should have received a copy of the GNU General Public License
- * along with this program; if not, write to the Free Software
- * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
- *
- * Author: Mohamed Amine Ismail <amine.ismail@sophia.inria.fr>
- *                              <amine.ismail@udcast.com>
+ * Author: Lucas de A. Cerqueira <lucas.cerqueira@poli.ufrj.br>
+ * Universidade Federal do Rio de Janeiro (UFRJ)
  */
 
 #ifndef KUNISCH_TWORAY_PROPAGATION_LOSS_MODEL_H
@@ -28,25 +13,7 @@
 #include <map>
 
 namespace ns3 {
-
-  /**
-   * \ingroup propagation
-   *
-   * \brief a log distance propagation model for LOS and OLOS for VANET.
-   *
-   * Developed by VOLVO...
-   *
-   * where:
-   *  - \f$ n \f$ : the path loss distance exponent
-   *  - \f$ d_0 \f$ : reference distance (m)
-   *  - \f$ L_0 \f$ : path loss at reference distance (dB)
-   *  - \f$ d \f$ : distance (m)
-   *  - \f$ L \f$ : path loss (dB)
-   *
-   * When the path loss is requested at a distance smaller than
-   * the reference distance, the tx power is returned.
-   *
-   */
+  
   class KunischTwoRayPropagationLossModel : public PropagationLossModel
   {
   public:
@@ -88,7 +55,8 @@ namespace ns3 {
     double GetSystemLoss (void) const;
 
     /**
-     * \param heightAboveZ the model antenna height above the node's Z coordinate
+     * \param heightAboveZ the model antenna height above the
+     * node's Z coordinate
      *
      * Set the model antenna height above the node's Z coordinate
      */
@@ -112,14 +80,18 @@ namespace ns3 {
      *
      * Defined and unimplemented to avoid misuse
      */
-    KunischTwoRayPropagationLossModel (const KunischTwoRayPropagationLossModel &);
+    KunischTwoRayPropagationLossModel (
+      const KunischTwoRayPropagationLossModel &
+    );
     /**
      * \brief Copy constructor
      *
      * Defined and unimplemented to avoid misuse
      * \returns
      */
-    KunischTwoRayPropagationLossModel & operator = (const KunischTwoRayPropagationLossModel &);
+    KunischTwoRayPropagationLossModel & operator = (
+      const KunischTwoRayPropagationLossModel &
+    );
 
     virtual double DoCalcRxPower (double txPowerDbm,
                                   Ptr<MobilityModel> a,
