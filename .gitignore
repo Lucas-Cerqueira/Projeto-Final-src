@@ -1,5 +1,6 @@
 .ipynb_checkpoints/
 *.pyc
+*.eps
 bake/
 netanim/
 ns-3-dev/

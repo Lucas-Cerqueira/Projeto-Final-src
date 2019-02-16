@@ -49,14 +49,6 @@ KunischTwoRayPropagationLossModel::GetTypeId (void)
                      &KunischTwoRayPropagationLossModel::GetMinDistance
                    ),
                    MakeDoubleChecker<double> ())
-    .AddAttribute ("HeightAboveZ",
-                   "The height of the antenna (m) above the node's Z coordinate\
-                   (default is 1.5 m)",
-                   DoubleValue (1.81),
-                   MakeDoubleAccessor (
-                     &KunischTwoRayPropagationLossModel::m_heightAboveZ
-                   ),
-                   MakeDoubleChecker<double> ())
     .AddAttribute ("BaseGain",
                    "The constant base gain of the channel in dB \
                    (default is -9.0 dB)",
@@ -102,12 +94,6 @@ KunischTwoRayPropagationLossModel::GetMinDistance (void) const
 }
 
 void
-KunischTwoRayPropagationLossModel::SetHeightAboveZ (double heightAboveZ)
-{
-  m_heightAboveZ = heightAboveZ;
-}
-
-void
 KunischTwoRayPropagationLossModel::SetFrequency (double frequency)
 {
   m_frequency = frequency;
@@ -143,15 +129,13 @@ KunischTwoRayPropagationLossModel::DoCalcRxPower (double txPowerDbm,
 
   double distance = a->GetDistanceFrom (b);
 
-  // Set the height of the Tx and Rx antennas
-  // double txAntHeight = a->GetPosition ().z + m_heightAboveZ;
-  // double rxAntHeight = b->GetPosition ().z + m_heightAboveZ;
+  // Get the height of the Tx and Rx antennas
+  double txAntHeight = a->GetPosition ().z;
+  double rxAntHeight = b->GetPosition ().z;
 
-  // double reflectedDistance = std::sqrt(std::pow(txAntHeight + rxAntHeight, 2) +
-  //                                      std::pow(distance, 2));
-
-  double reflectedDistance = std::sqrt(std::pow(2 * m_heightAboveZ, 2) +
-                                       std::pow(distance, 2));
+  double reflectedDistance = std::sqrt(
+    std::pow(distance, 2) + 4 * txAntHeight * rxAntHeight
+  );
 
   if (distance <= m_minDistance)
     {

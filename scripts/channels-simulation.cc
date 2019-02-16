@@ -299,8 +299,8 @@ int main (int argc, char *argv[])
 
   bool verbose = false;
 
-  Vector pos_vehA (0.0, 5.0, 0.0);
-  Vector pos_vehB (1000.0, 5.0, 0.0);
+  Vector pos_vehA (0.0, 5.0, 1.8);
+  Vector pos_vehB (1000.0, 5.0, 1.8);
 
   Vector vel_vehA (0.0, 0.0, 0.0);
   Vector vel_vehB (-10.0, 0.0, 0.0);
@@ -408,7 +408,6 @@ int main (int argc, char *argv[])
   {
     wifiChannel.AddPropagationLoss ("ns3::KunischTwoRayPropagationLossModel",
                                     "Frequency", DoubleValue (freq),
-                                    "HeightAboveZ", DoubleValue (1.8),
                                     "BaseGain", DoubleValue(-9.5),
                                     "MinDistance", DoubleValue(10),
                                     "ReflectionCoefficientMag", DoubleValue(0.264),

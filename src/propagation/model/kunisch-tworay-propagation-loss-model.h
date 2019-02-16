@@ -13,7 +13,7 @@
 #include <map>
 
 namespace ns3 {
-  
+
   class KunischTwoRayPropagationLossModel : public PropagationLossModel
   {
   public:
@@ -53,14 +53,6 @@ namespace ns3 {
      * \returns the current system loss (dimension-less)
      */
     double GetSystemLoss (void) const;
-
-    /**
-     * \param heightAboveZ the model antenna height above the
-     * node's Z coordinate
-     *
-     * Set the model antenna height above the node's Z coordinate
-     */
-    void SetHeightAboveZ (double heightAboveZ);
 
     /**
      * \param noiseStd the noise standard deviation
@@ -115,7 +107,6 @@ namespace ns3 {
     double m_lambda;        //!< the carrier wavelength
     double m_frequency;     //!< the carrier frequency
     double m_minDistance;   //!< minimum distance for the model
-    double m_heightAboveZ;  //!< antenna height above the node's Z coordinate
 
     double m_coefficientMag; //!< reflection coefficient magnitude
     double m_coefficientPhase; //!< reflection coefficient phase
