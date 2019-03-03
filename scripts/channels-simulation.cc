@@ -61,6 +61,7 @@
 
 #include "ns3/dual-log-distance-propagation-loss-model.h"
 #include "ns3/two-ray-propagation-loss-model.h"
+#include "ns3/intersection-propagation-loss-model.h"
 
 using namespace ns3;
 
@@ -288,19 +289,24 @@ int main (int argc, char *argv[])
   */
   uint32_t fading = 0;
   uint32_t packetSize = 400; // bytes
-  uint32_t numPackets = 1000;
+  uint32_t numPackets = 300;
 
   // double awgnVariance = -1;
   double awgnVariance = 0;
   double interval = 0.1; // 10 times per second
   double totalSimTime = numPackets * interval + 1;
   double freq = 5.9e9;
-  double txPower = 15;
+  double txPower = 20;
 
   bool verbose = false;
 
-  Vector pos_vehA (0.0, 5.0, 1.8);
-  Vector pos_vehB (1000.0, 5.0, 1.8);
+  // Vector pos_vehA (0.0, 5.0, 1.8);
+  // Vector pos_vehB (1000.0, 5.0, 1.8);
+
+  // Intersection test
+  double dt = 60;
+  Vector pos_vehA (0.0, 0.0, 1.8);
+  Vector pos_vehB (200.0, dt, 1.8);
 
   Vector vel_vehA (0.0, 0.0, 0.0);
   Vector vel_vehB (-10.0, 0.0, 0.0);
@@ -342,9 +348,9 @@ int main (int argc, char *argv[])
     wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Exponent0", DoubleValue(1.66),
-                                    "Exponent1", DoubleValue(2.88),
-                                    "ReferenceLoss", DoubleValue(66.1));
+                                    "Exponent0", DoubleValue (1.66),
+                                    "Exponent1", DoubleValue (2.88),
+                                    "ReferenceLoss", DoubleValue (66.1));
     if (awgnVariance != 0)
       awgnVariance = std::pow(3.95, 2.0);
   }
@@ -354,9 +360,9 @@ int main (int argc, char *argv[])
     wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Exponent0", DoubleValue(1.81),
-                                    "Exponent1", DoubleValue(2.85),
-                                    "ReferenceLoss", DoubleValue(63.9));
+                                    "Exponent0", DoubleValue (1.81),
+                                    "Exponent1", DoubleValue (2.85),
+                                    "ReferenceLoss", DoubleValue (63.9));
     if (awgnVariance != 0)
       awgnVariance = std::pow(4.15, 2.0);
   }
@@ -367,9 +373,9 @@ int main (int argc, char *argv[])
     wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Exponent0", DoubleValue(0.0),
-                                    "Exponent1", DoubleValue(3.18),
-                                    "ReferenceLoss", DoubleValue(76.1));
+                                    "Exponent0", DoubleValue (0.0),
+                                    "Exponent1", DoubleValue (3.18),
+                                    "ReferenceLoss", DoubleValue (76.1));
     if (awgnVariance != 0)
       awgnVariance = std::pow(6.12, 2.0);
   }
@@ -379,9 +385,9 @@ int main (int argc, char *argv[])
     wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Exponent0", DoubleValue(1.93),
-                                    "Exponent1", DoubleValue(2.74),
-                                    "ReferenceLoss", DoubleValue(72.3));
+                                    "Exponent0", DoubleValue (1.93),
+                                    "Exponent1", DoubleValue (2.74),
+                                    "ReferenceLoss", DoubleValue (72.3));
     if (awgnVariance != 0)
       awgnVariance = std::pow(6.67, 2.0);
   }
@@ -408,10 +414,10 @@ int main (int argc, char *argv[])
   {
     wifiChannel.AddPropagationLoss ("ns3::KunischTwoRayPropagationLossModel",
                                     "Frequency", DoubleValue (freq),
-                                    "BaseGain", DoubleValue(-9.5),
-                                    "MinDistance", DoubleValue(10),
-                                    "ReflectionCoefficientMag", DoubleValue(0.264),
-                                    "ReflectionCoefficientPhase", DoubleValue(-158));
+                                    "BaseGain", DoubleValue (-9.5),
+                                    "MinDistance", DoubleValue (10),
+                                    "ReflectionCoefficientMag", DoubleValue (0.264),
+                                    "ReflectionCoefficientPhase", DoubleValue (-158));
 
     // wifiChannel.AddPropagationLoss ("ns3::KunischTwoRayPropagationLossModel",
     //                                 "Frequency", DoubleValue (5.2e9),
@@ -423,17 +429,37 @@ int main (int argc, char *argv[])
     if (awgnVariance != 0)
       awgnVariance = std::pow(2.7, 2.0);
   }
+  // Intersection model
+  else if (lossModel == 8)
+  {
+    wifiChannel.AddPropagationLoss ("ns3::IntersectionPropagationLossModel",
+                                    "IntersectionCenter",
+                                    Vector2DValue (Vector2D (0, dt)),
+                                    "Frequency", DoubleValue (freq),
+                                    "MinDistance", DoubleValue (1),
+                                    "BreakDistance", DoubleValue (180),
+                                    "RxStreetWidth", DoubleValue (23),
+                                    "IsSuburban", BooleanValue (false));
+
+    // wifiChannel.AddPropagationLoss ("ns3::IntersectionPropagationLossModel",
+    //                                 "Frequency",
+    //                                 DoubleValue (freq));
+
+    // if (awgnVariance != 0)
+    //   awgnVariance = std::pow(2.7, 2.0);
+  }
   else
   {
     std:: cout  << "Invalid propagation loss model specified.\n" <<
-    "Values must be [1-7], where:\n" <<
+    "Values must be [1-8], where:\n" <<
     "1: Volvo LOS Highway\n" <<
     "2: Volvo LOS Urban\n" <<
     "3: Volvo OLOS Highway\n" <<
     "4: Volvo OLOS Urban\n" <<
     "5: Kunisch Highway\n" <<
     "6: Kunisch Urban\n" <<
-    "7: Kunisch Rural\n";
+    "7: Kunisch Rural\n" <<
+    "8: Intersection";
    return -1;
   }
 
@@ -514,12 +540,12 @@ int main (int argc, char *argv[])
   Ipv4InterfaceContainer i = ipv4.Assign (devices);
 
   TypeId tid = TypeId::LookupByName ("ns3::UdpSocketFactory");
-  Ptr<Socket> recvSink = Socket::CreateSocket (c.Get (0), tid);
+  Ptr<Socket> recvSink = Socket::CreateSocket (c.Get (1), tid); // Vehicle B
   InetSocketAddress local = InetSocketAddress (Ipv4Address::GetAny (), 80);
   recvSink->Bind (local);
   //recvSink->SetRecvCallback (MakeCallback (&ReceivePacket));
 
-  Ptr<Socket> source = Socket::CreateSocket (c.Get (1), tid);
+  Ptr<Socket> source = Socket::CreateSocket (c.Get (0), tid); // Vehicle A
   InetSocketAddress remote = InetSocketAddress (Ipv4Address ("255.255.255.255"), 80);
   source->SetAllowBroadcast (true);
   //source->SetDataSentCallback (MakeCallback (&SentPacket));

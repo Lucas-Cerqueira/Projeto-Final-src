@@ -15,6 +15,7 @@ def build(bld):
         'model/kun-2600-mhz-propagation-loss-model.cc',
         'model/dual-log-distance-propagation-loss-model.cc',
         'model/kunisch-tworay-propagation-loss-model.cc',
+        'model/intersection-propagation-loss-model.cc',
         ]
 
     module_test = bld.create_ns3_module_test_library('propagation')
@@ -42,6 +43,7 @@ def build(bld):
         'model/kun-2600-mhz-propagation-loss-model.h',
         'model/dual-log-distance-propagation-loss-model.h',
         'model/kunisch-tworay-propagation-loss-model.h',
+        'model/intersection-propagation-loss-model.h',
         ]
 
     if (bld.env['ENABLE_EXAMPLES']):

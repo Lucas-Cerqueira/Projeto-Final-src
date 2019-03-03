@@ -50,7 +50,7 @@ KunischTwoRayPropagationLossModel::GetTypeId (void)
                    ),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("BaseGain",
-                   "The constant base gain of the channel in dB \
+                   "The constant base gain of the channel in dB\
                    (default is -9.0 dB)",
                    DoubleValue (-9.0),
                    MakeDoubleAccessor (
@@ -58,7 +58,7 @@ KunischTwoRayPropagationLossModel::GetTypeId (void)
                    ),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("ReflectionCoefficientMag",
-                   "The magnitude of the complex reflection coefficient \
+                   "The magnitude of the complex reflection coefficient\
                    (default is 0.353)",
                    DoubleValue (0.353),
                    MakeDoubleAccessor (
@@ -66,7 +66,7 @@ KunischTwoRayPropagationLossModel::GetTypeId (void)
                    ),
                    MakeDoubleChecker<double> ())
     .AddAttribute ("ReflectionCoefficientPhase",
-                   "The phase of the complex reflection coefficient in degrees \
+                   "The phase of the complex reflection coefficient in degrees\
                    (default is -154 degrees)",
                    DoubleValue (-154.0),
                    MakeDoubleAccessor (
