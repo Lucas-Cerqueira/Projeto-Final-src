@@ -2,7 +2,7 @@
 /*
  * Author: Lucas de A. Cerqueira <lucas.cerqueira@poli.ufrj.br>
  * Universidade Federal do Rio de Janeiro (UFRJ)
- */
+*/
 
 #include "ns3/propagation-loss-model.h"
 #include "ns3/log.h"
@@ -174,15 +174,6 @@ IntersectionPropagationLossModel::DoCalcRxPower (double txPowerDbm,
   else
     tx_wall_distance = m_tx_wall_distance;
 
-  NS_LOG_DEBUG ("txDistance=" << txDistance << "m, " <<
-                "rxDistance=" << rxDistance << "m, " <<
-                "inters_center=" << m_intersec_center << ", " <<
-                "txPos=" << txPos << ", " <<
-                "rxPos=" << rxPos << ", " <<
-                "x_t=" << tx_wall_distance << "m, " <<
-                "w_r=" << m_rx_street_width << "m, " <<
-                "d_b=" << break_distance << "m");
-
   if (rxDistance < m_min_distance)
   {
     pathLossDb = 0;
@@ -207,8 +198,7 @@ IntersectionPropagationLossModel::DoCalcRxPower (double txPowerDbm,
   }
 
   NS_LOG_DEBUG ("propagation: rxDistance=" << rxDistance << "m, " <<
-                "pathLoss=" << pathLossDb << "dB, " <<
-                "rxPower=" << (20-pathLossDb) << "dBm");
+                "pathLoss=" << pathLossDb << "dB");
 
   return txPowerDbm - pathLossDb;
 }

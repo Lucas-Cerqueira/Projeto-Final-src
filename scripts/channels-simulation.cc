@@ -221,17 +221,17 @@ void SimulationMonitor::CalculateMetrics()
     return;
   }
 
-  double kbps = rxBytesCount * 8.0 / 1000.0;
+  // double kbps = rxBytesCount * 8.0 / 1000.0;
   double per = (float)(txPacketsCount - rxPacketsCount)/(float)txPacketsCount;
-  double ber = (float)(txBytesCount - rxBytesCount)/(float)txBytesCount;
+  // double ber = (float)(txBytesCount - rxBytesCount)/(float)txBytesCount;
 
   double distance = GetNodeRelDistance();
 
-  std::cout << "Time: " << (Simulator::Now ()).GetSeconds () << "s" << "\t"
-  << "Distance: " << distance << "m" << "\t"
-  << "PER: " << per << "\t"
-  << "BER: " << ber << "\t"
-  << kbps << " kbps" << std::endl;
+  // std::cout << "Time: " << (Simulator::Now ()).GetSeconds () << "s" << "\t"
+  // << "Distance: " << distance << "m" << "\t"
+  // << "PER: " << per << "\t"
+  // << "BER: " << ber << "\t"
+  // << kbps << " kbps" << std::endl;
 
   //std::cout << "Position: " << m_source->GetNode()->GetObject<MobilityModel>()->GetPosition() << std::endl;
 
@@ -289,7 +289,7 @@ int main (int argc, char *argv[])
   */
   uint32_t fading = 0;
   uint32_t packetSize = 400; // bytes
-  uint32_t numPackets = 300;
+  uint32_t numPackets = 700;
 
   // double awgnVariance = -1;
   double awgnVariance = 0;
@@ -300,13 +300,13 @@ int main (int argc, char *argv[])
 
   bool verbose = false;
 
-  // Vector pos_vehA (0.0, 5.0, 1.8);
-  // Vector pos_vehB (1000.0, 5.0, 1.8);
+  Vector pos_vehA (0.0, 5.0, 1.8);
+  Vector pos_vehB (1000.0, 5.0, 1.8);
 
   // Intersection test
   double dt = 60;
-  Vector pos_vehA (0.0, 0.0, 1.8);
-  Vector pos_vehB (200.0, dt, 1.8);
+  // Vector pos_vehA (0.0, 0.0, 1.8);
+  // Vector pos_vehB (200.0, dt, 1.8);
 
   Vector vel_vehA (0.0, 0.0, 0.0);
   Vector vel_vehB (-10.0, 0.0, 0.0);
@@ -373,7 +373,7 @@ int main (int argc, char *argv[])
     wifiChannel.AddPropagationLoss ("ns3::DualLogDistancePropagationLossModel",
                                     "Distance0", DoubleValue (10.0),
                                     "Distance1", DoubleValue (104.0), // Paper
-                                    "Exponent0", DoubleValue (0.0),
+                                    "Exponent0", DoubleValue (1.66),
                                     "Exponent1", DoubleValue (3.18),
                                     "ReferenceLoss", DoubleValue (76.1));
     if (awgnVariance != 0)
@@ -564,7 +564,7 @@ int main (int argc, char *argv[])
   //anim.SetMobilityPollInterval(Seconds (0.5));
   //anim.SkipPacketTracing();
 
-  //CheckThroughput();
+  CheckThroughput();
 
   Simulator::Stop (Seconds (totalSimTime));
   Simulator::Run ();

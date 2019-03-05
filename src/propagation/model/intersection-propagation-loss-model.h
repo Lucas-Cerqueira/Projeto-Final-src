@@ -2,7 +2,7 @@
 /*
  * Author: Lucas de A. Cerqueira <lucas.cerqueira@poli.ufrj.br>
  * Universidade Federal do Rio de Janeiro (UFRJ)
- */
+*/
 
 #ifndef INTERSECTION_PROPAGATION_LOSS_MODEL_H
 #define INTERSECTION_PROPAGATION_LOSS_MODEL_H
@@ -88,11 +88,6 @@ namespace ns3 {
      double m_tx_wall_distance; //!< Distance of transmitter to wall
 
      bool m_is_suburban;
-     //
-     // double m_exponent0; //!< The exponent for the first field.
-     // double m_exponent1; //!< The exponent for the second field.
-     //
-     // double m_referenceLoss; //!< The reference loss at distance d0 (dB).
    };
 } /* namespace ns3*/
 
